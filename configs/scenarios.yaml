@@ -1,0 +1,123 @@
+scenarios:
+  - name: "normal_workday"
+    description: "正常工作日"
+    type: "schedule"
+    schedule:
+      type: "weekday"
+
+  - name: "weekend"
+    description: "周末低负载"
+    type: "schedule"
+    schedule:
+      type: "always"
+    overrides:
+      occupancy_factor: 0.2
+      power_load_factor: 0.3
+
+  - name: "holiday"
+    description: "节假日极低负载"
+    type: "schedule"
+    schedule:
+      type: "always"
+    overrides:
+      occupancy_factor: 0.1
+      power_load_factor: 0.15
+
+  - name: "summer_peak"
+    description: "夏季高温日"
+    type: "schedule"
+    schedule:
+      type: "date_range"
+      start: "2026-07-01"
+      end: "2026-09-30"
+    overrides:
+      outdoor_temp_base: 35
+      outdoor_temp_amplitude: 5
+      cooling_load_factor: 1.3
+
+  - name: "winter_peak"
+    description: "冬季严寒日"
+    type: "schedule"
+    schedule:
+      type: "date_range"
+      start: "2026-12-01"
+      end: "2026-02-28"
+    overrides:
+      outdoor_temp_base: 2
+      outdoor_temp_amplitude: 8
+
+  - name: "fire_emergency"
+    description: "消防突发事件演练"
+    type: "instant"
+    trigger:
+      manual: true
+    sequence:
+      - time: "0s"
+        actions:
+          - device_type: "smoke_detector"
+            target: "SMOKE-*"
+            state:
+              smoke_density: 85
+              alarm: true
+      - time: "5s"
+        actions:
+          - device_type: "fire_door"
+            target: "FIRE_DOOR-*"
+            state:
+              status: "open"
+              alarm: true
+      - time: "10s"
+        actions:
+          - device_type: "elevator_controller"
+            target: "ELEV-*"
+            state:
+              status: "recalling"
+              target_floor: 1
+      - time: "15s"
+        actions:
+          - device_type: "access_controller"
+            target: "ACCESS-*"
+            state:
+              door_status: "open_all"
+              mode: "emergency"
+
+  - name: "power_outage"
+    description: "停电事件"
+    type: "instant"
+    trigger:
+      manual: true
+    sequence:
+      - time: "0s"
+        actions:
+          - device_type: "power_meter"
+            target: "*"
+            state:
+              voltage_a: 0
+              voltage_b: 0
+              voltage_c: 0
+              active_power: 0
+      - time: "30s"
+        actions:
+          - device_type: "battery_storage"
+            target: "*"
+            state:
+              power: -50
+
+  - name: "intrusion"
+    description: "安防入侵事件"
+    type: "instant"
+    trigger:
+      manual: true
+    sequence:
+      - time: "0s"
+        actions:
+          - device_type: "infrared_beam"
+            target: "IR-BEAM-*"
+            state:
+              alarm: true
+      - time: "3s"
+        actions:
+          - device_type: "ptz_camera"
+            target: "PTZ-*"
+            state:
+              preset: 1

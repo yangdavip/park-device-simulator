@@ -1,0 +1,102 @@
+park:
+  id: "P001"
+  name: "智慧园区演示项目"
+  location:
+    city: "深圳"
+    latitude: 22.5431
+    longitude: 114.0579
+  timezone: "Asia/Shanghai"
+
+buildings:
+  - id: "B001"
+    name: "A栋办公楼"
+    floors: 20
+    systems:
+      - type: bas
+        enabled: true
+        devices:
+          - { type: ahu, count: 10, protocol: mqtt }
+          - { type: fcu, count: 20, protocol: mqtt }
+          - { type: fau, count: 5, protocol: mqtt }
+          - { type: chiller, count: 2, protocol: modbus, config: { rated_power: 500 } }
+          - { type: cooling_tower, count: 2, protocol: mqtt }
+          - { type: pump, count: 4, protocol: mqtt, config: { rated_power: 22, rated_flow: 100 } }
+          - { type: water_tank, count: 2, protocol: mqtt }
+          - { type: vent_fan, count: 6, protocol: mqtt }
+          - { type: heat_exchanger, count: 1, protocol: mqtt }
+
+      - type: lighting
+        enabled: true
+        devices:
+          - { type: lighting_circuit, count: 10, protocol: mqtt }
+          - { type: lux_sensor, count: 5, protocol: opcua }
+          - { type: lamp_controller, count: 20, protocol: mqtt }
+          - { type: scene_panel, count: 5, protocol: mqtt }
+
+      - type: energy
+        enabled: true
+        devices:
+          - { type: power_meter, count: 5, protocol: modbus, config: { rated_power: 100 } }
+          - { type: water_meter, count: 2, protocol: mqtt }
+          - { type: gas_meter, count: 1, protocol: mqtt }
+          - { type: heat_meter, count: 1, protocol: mqtt }
+          - { type: pv_inverter, count: 1, protocol: mqtt, config: { rated_power: 50 } }
+          - { type: battery_storage, count: 1, protocol: mqtt, config: { capacity: 200 } }
+
+      - type: security
+        enabled: true
+        devices:
+          - { type: ip_camera, count: 10, protocol: mqtt }
+          - { type: ptz_camera, count: 4, protocol: mqtt }
+          - { type: video_analyzer, count: 2, protocol: mqtt }
+          - { type: infrared_beam, count: 6, protocol: http }
+          - { type: electric_fence, count: 4, protocol: mqtt }
+
+      - type: access
+        enabled: true
+        devices:
+          - { type: access_controller, count: 8, protocol: http }
+          - { type: face_terminal, count: 6, protocol: http }
+          - { type: visitor_kiosk, count: 2, protocol: http }
+          - { type: turnstile, count: 4, protocol: http }
+
+      - type: fire
+        enabled: true
+        devices:
+          - { type: smoke_detector, count: 20, protocol: mqtt }
+          - { type: temp_detector, count: 10, protocol: mqtt }
+          - { type: manual_call_point, count: 5, protocol: http }
+          - { type: fire_hydrant, count: 6, protocol: mqtt }
+          - { type: sprinkler_pump, count: 2, protocol: mqtt }
+          - { type: fire_door, count: 8, protocol: mqtt }
+
+      - type: parking
+        enabled: true
+        devices:
+          - { type: lpr_camera, count: 2, protocol: http }
+          - { type: geomagnetic, count: 20, protocol: mqtt }
+          - { type: ultrasonic_sensor, count: 30, protocol: mqtt }
+          - { type: guide_screen, count: 3, protocol: mqtt }
+          - { type: charging_pile, count: 4, protocol: mqtt }
+
+      - type: environment
+        enabled: true
+        devices:
+          - { type: temp_humidity_sensor, count: 10, protocol: opcua }
+          - { type: pm25_sensor, count: 5, protocol: opcua }
+          - { type: co2_sensor, count: 5, protocol: opcua }
+          - { type: noise_sensor, count: 3, protocol: opcua }
+          - { type: gas_sensor, count: 2, protocol: mqtt }
+          - { type: weather_station, count: 1, protocol: mqtt }
+
+      - type: elevator
+        enabled: true
+        devices:
+          - { type: elevator_controller, count: 4, protocol: mqtt }
+          - { type: escalator_controller, count: 2, protocol: mqtt }
+
+      - type: broadcast
+        enabled: true
+        devices:
+          - { type: broadcast_terminal, count: 10, protocol: mqtt }
+          - { type: emergency_broadcast, count: 2, protocol: http }

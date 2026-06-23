@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智慧园区设备监控平台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e27; color: #e0e0e0; }
+    #app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; height: 100vh; }
+    .header { grid-column: 1/-1; background: #111845; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #1e2d5a; }
+    .header h1 { font-size: 16px; color: #4fc3f7; }
+    .sidebar { background: #0d1229; border-right: 1px solid #1e2d5a; padding: 12px 0; }
+    .sidebar .nav-item { padding: 10px 16px; cursor: pointer; color: #8892b0; font-size: 13px; }
+    .sidebar .nav-item:hover, .sidebar .nav-item.active { background: #1a2040; color: #4fc3f7; }
+    .main { padding: 16px; overflow-y: auto; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .stat-card { background: #111845; border-radius: 8px; padding: 16px; border: 1px solid #1e2d5a; }
+    .stat-card .label { font-size: 12px; color: #8892b0; }
+    .stat-card .value { font-size: 28px; font-weight: bold; color: #4fc3f7; margin-top: 4px; }
+    .section-title { font-size: 14px; color: #8892b0; margin-bottom: 12px; }
+    .device-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+    .device-card { background: #111845; border-radius: 8px; padding: 12px; border: 1px solid #1e2d5a; font-size: 13px; }
+    .device-card .id { color: #4fc3f7; font-weight: 600; }
+    .device-card .online { color: #66bb6a; }
+    .device-card .offline { color: #ef5350; }
+    .tag { display: inline-block; background: #1a2040; border-radius: 4px; padding: 2px 6px; font-size: 11px; color: #8892b0; margin-right: 4px; }
+    .alarm-list { display: flex; flex-direction: column; gap: 8px; }
+    .alarm-item { background: #1a1020; border-left: 3px solid #ef5350; padding: 10px 12px; border-radius: 4px; font-size: 13px; }
+    .alarm-item.warning { border-color: #ffa726; background: #1a1810; }
+    .alarm-item.critical { border-color: #ef5350; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <h1>🏢 智慧园区设备监控平台</h1>
+  </div>
+  <div class="sidebar">
+    <div class="nav-item active" data-page="overview">📊 总览</div>
+    <div class="nav-item" data-page="devices">📱 设备列表</div>
+    <div class="nav-item" data-page="alarms">🚨 告警中心</div>
+    <div class="nav-item" data-page="scenarios">🎬 场景模式</div>
+    <div class="nav-item" data-page="protocols">🔌 协议状态</div>
+  </div>
+  <div class="main" id="main"></div>
+</div>
+
+<script>
+const API = '/api/v1';
+let state = { stats: null, devices: [], alarms: [], currentPage: 'overview' };
+
+async function fetchJSON(url) {
+  const r = await fetch(url);
+  return r.json();
+}
+
+async function renderOverview() {
+  const stats = await fetchJSON(`${API}/stats`);
+  const alarms = await fetchJSON(`${API}/alarms?limit=5`);
+  const html = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">设备总数</div><div class="value">${stats.total_devices}</div></div>
+      <div class="stat-card"><div class="label">在线设备</div><div class="value" style="color:#66bb6a">${stats.online_devices}</div></div>
+      <div class="stat-card"><div class="label">在线率</div><div class="value">${stats.online_rate?.toFixed(1)}%</div></div>
+      <div class="stat-card"><div class="label">当前场景</div><div class="value" style="font-size:18px">${stats.current_scenario}</div></div>
+    </div>
+    <div class="section-title">最新告警</div>
+    <div class="alarm-list">
+      ${(alarms.alarms || []).slice(0, 5).map(a => `
+        <div class="alarm-item ${a.level}">
+          <b>${a.device_id}</b> · ${a.type} · ${a.level} · ${new Date(a.ts).toLocaleTimeString()}
+          <div style="color:#ef5350;margin-top:4px">${a.message}</div>
+        </div>
+      `).join('') || '<div style="color:#8892b0">暂无告警</div>'}
+    </div>
+  `;
+  document.getElementById('main').innerHTML = html;
+}
+
+async function renderDevices() {
+  const data = await fetchJSON(`${API}/devices?limit=200`);
+  const html = `
+    <div class="section-title">设备列表（共 ${data.total} 台）</div>
+    <div class="device-list">
+      ${(data.devices || []).map(d => `
+        <div class="device-card">
+          <div class="id">${d.id}</div>
+          <div style="margin:4px 0">
+            <span class="${d.status === 'online' ? 'online' : 'offline'}">●</span>
+            ${d.status} · ${d.system} · ${d.type}
+          </div>
+          <div>${Object.entries(d.metadata || {}).map(([k,v]) => `<span class="tag">${k}:${v}</span>`).join('')}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  document.getElementById('main').innerHTML = html;
+}
+
+async function renderAlarms() {
+  const data = await fetchJSON(`${API}/alarms?limit=50`);
+  const html = `
+    <div class="section-title">告警中心（共 ${data.total} 条）</div>
+    <div class="alarm-list">
+      ${(data.alarms || []).map(a => `
+        <div class="alarm-item ${a.level}">
+          <b>${a.device_id}</b> · ${a.type} · <span class="${a.level}">${a.level}</span>
+          <div style="margin-top:4px">${a.message}</div>
+          <div style="color:#8892b0;font-size:11px;margin-top:4px">${new Date(a.ts).toLocaleString()}</div>
+        </div>
+      `).join('') || '<div style="color:#8892b0">暂无告警</div>'}
+    </div>
+  `;
+  document.getElementById('main').innerHTML = html;
+}
+
+async function renderScenarios() {
+  const data = await fetchJSON(`${API}/scenarios`);
+  const html = `
+    <div class="section-title">场景模式</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      ${(data.scenarios || []).map(s => `
+        <div class="stat-card" style="cursor:pointer;min-width:160px" onclick="activateScenario('${s.name}')">
+          <div class="label">${s.name}</div>
+          <div class="value" style="font-size:14px;color:${s.active ? '#66bb6a' : '#8892b0'}">${s.active ? '● 激活' : '○ 未激活'}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  document.getElementById('main').innerHTML = html;
+}
+
+async function activateScenario(name) {
+  await fetch(`${API}/scenarios/${name}/activate`, { method: 'POST' });
+  renderScenarios();
+}
+
+async function renderProtocols() {
+  const data = await fetchJSON(`${API}/protocols/status`);
+  const html = `
+    <div class="section-title">协议适配器状态</div>
+    <div class="device-list">
+      ${Object.entries(data).map(([proto, status]) => `
+        <div class="device-card">
+          <div class="id">${proto.toUpperCase()}</div>
+          <pre style="color:#8892b0;font-size:12px;margin-top:8px">${JSON.stringify(status, null, 2)}</pre>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  document.getElementById('main').innerHTML = html;
+}
+
+const pages = { overview: renderOverview, devices: renderDevices, alarms: renderAlarms, scenarios: renderScenarios, protocols: renderProtocols };
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    state.currentPage = el.dataset.page;
+    (pages[state.currentPage] || renderOverview)();
+  });
+});
+
+// 默认页
+renderOverview();
+// 自动刷新
+setInterval(() => (pages[state.currentPage] || renderOverview)(), 10000);
+</script>
+</body>
+</html>

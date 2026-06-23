@@ -1,0 +1,93 @@
+/* Global Styles */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+#app {
+  height: 100vh;
+}
+
+.app-layout {
+  height: 100vh;
+  display: flex;
+}
+
+.app-aside {
+  background: #0d1229;
+  color: #8892b0;
+  transition: width 0.3s;
+}
+
+.app-aside .el-menu {
+  background: transparent;
+  border-right: none;
+}
+
+.app-header {
+  background: #111845;
+  border-bottom: 1px solid #1e2d5a;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  height: 56px;
+}
+
+.app-header .title {
+  font-size: 16px;
+  color: #4fc3f7;
+  font-weight: 600;
+}
+
+.app-main {
+  background: #0a0e27;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* 暗色主题覆盖 */
+.el-card {
+  background: #111845 !important;
+  border-color: #1e2d5a !important;
+  color: #e0e0e0 !important;
+}
+
+.el-card__header {
+  border-color: #1e2d5a !important;
+}
+
+.el-table {
+  background: transparent !important;
+  color: #e0e0e0 !important;
+}
+
+.el-table tr,
+.el-table td,
+.el-table th {
+  background: transparent !important;
+  border-color: #1e2d5a !important;
+}
+
+.el-table--border .el-table__cell {
+  border-color: #1e2d5a !important;
+}
+
+.el-table__row:hover > td {
+  background: #1a2040 !important;
+}
+
+.el-tag {
+  border: none;
+}
+
+.el-statistic__head {
+  color: #8892b0 !important;
+}
+
+.el-statistic__content {
+  color: #4fc3f7 !important;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0a0e27; }
+::-webkit-scrollbar-thumb { background: #1e2d5a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2a3d6a; }

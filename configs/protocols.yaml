@@ -1,0 +1,32 @@
+mqtt:
+  broker:
+    host: "localhost"
+    port: 1883
+    embedded: false
+  client:
+    keepalive: 60
+    qos: 1
+    username: "simulator"
+    password: "sim123"
+
+http:
+  server:
+    port: 8090
+  callback_url: "http://localhost:8080/api/v1/devices/events"
+  timeout: 10
+
+modbus:
+  servers:
+    - name: "power_meters"
+      port: 502
+      slave_ids: [1, 2, 3, 4, 5]
+    - name: "chillers"
+      port: 503
+      slave_ids: [1, 2]
+
+opcua:
+  server:
+    enable: true
+    port: 4840
+    endpoint: "opc.tcp://localhost:4840"
+    security: "none"
