@@ -17,10 +17,12 @@ import (
 // ==================== MQTT 适配器 ====================
 
 type Adapter struct {
-	mu        sync.RWMutex
-	clients   map[string]mqtt.Client // deviceID → client
-	brokerCfg config.MQTTConfig
-	parkID    string
+	mu           sync.RWMutex
+	clients      map[string]mqtt.Client // deviceID → client
+	brokerCfg    config.MQTTConfig
+	parkID       string
+	brokerDown   bool // broker 不可用标记
+	connectFails int64
 }
 
 func NewAdapter(cfg config.MQTTConfig, parkID string) *Adapter {
@@ -34,6 +36,17 @@ func NewAdapter(cfg config.MQTTConfig, parkID string) *Adapter {
 // Report 通过 MQTT 上报设备数据
 func (a *Adapter) Report(d device.Device, data map[string]any) {
 	deviceID := d.ID()
+
+	a.mu.RLock()
+	if a.brokerDown {
+		a.mu.RUnlock()
+		a.mu.Lock()
+		a.connectFails++
+		a.mu.Unlock()
+		return
+	}
+	a.mu.RUnlock()
+
 	topic := fmt.Sprintf("park/%s/%s/%s/%s/properties", a.parkID, d.System(), d.Type(), deviceID)
 
 	payload := map[string]any{
@@ -118,7 +131,11 @@ func (a *Adapter) getOrCreateClient(deviceID, system, deviceType string) mqtt.Cl
 	client = mqtt.NewClient(opts)
 	token := client.Connect()
 	if token.WaitTimeout(5*time.Second) && token.Error() != nil {
-		log.Printf("[ERROR] MQTT 连接失败 %s: %v", deviceID, token.Error())
+		a.mu.Lock()
+		a.brokerDown = true
+		a.connectFails++
+		a.mu.Unlock()
+		log.Printf("[ERROR] MQTT broker 不可达，静默后续上报: %v", token.Error())
 		return nil
 	}
 
@@ -149,9 +166,11 @@ func (a *Adapter) Status() map[string]any {
 		}
 	}
 	return map[string]any{
-		"protocol":  "mqtt",
-		"broker":    fmt.Sprintf("%s:%d", a.brokerCfg.Broker.Host, a.brokerCfg.Broker.Port),
-		"clients":   total,
-		"connected": connected,
+		"protocol":       "mqtt",
+		"broker":         fmt.Sprintf("%s:%d", a.brokerCfg.Broker.Host, a.brokerCfg.Broker.Port),
+		"clients":        total,
+		"connected":      connected,
+		"connect_fails":  a.connectFails,
+		"broker_down":    a.brokerDown,
 	}
 }

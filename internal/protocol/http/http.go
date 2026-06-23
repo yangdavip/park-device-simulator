@@ -22,6 +22,7 @@ type Adapter struct {
 	client      *http.Client
 	sentCount   int64
 	failCount   int64
+	connected   bool // callback server 是否可达
 }
 
 func NewAdapter(cfg config.HTTPConfig) *Adapter {
@@ -66,14 +67,19 @@ func (a *Adapter) Report(d device.Device, data map[string]any) {
 		if err != nil {
 			a.mu.Lock()
 			a.failCount++
+			wasConnected := a.connected
+			a.connected = false
 			a.mu.Unlock()
-			log.Printf("[WARN] HTTP 上报失败 %s: %v", d.ID(), err)
+			if wasConnected {
+				log.Printf("[WARN] HTTP 上报失败 %s: %v", d.ID(), err)
+			}
 			return
 		}
 		defer resp.Body.Close()
 
 		a.mu.Lock()
 		a.sentCount++
+		a.connected = true
 		a.mu.Unlock()
 
 		if resp.StatusCode >= 400 {
@@ -98,5 +104,6 @@ func (a *Adapter) Status() map[string]any {
 		"callback":    a.callbackURL,
 		"sent_count":  a.sentCount,
 		"fail_count":  a.failCount,
+		"connected":   a.connected,
 	}
 }
