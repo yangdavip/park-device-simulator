@@ -105,3 +105,13 @@ func (e *AlarmEngine) ClearAlarms() {
 	e.alarms = nil
 	e.violations = make(map[string]time.Time)
 }
+
+// InjectAlarm 外部注入一条告警（用于场景触发）
+func (e *AlarmEngine) InjectAlarm(rec AlarmRecord) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.alarms = append(e.alarms, rec)
+	if len(e.alarms) > 1000 {
+		e.alarms = e.alarms[len(e.alarms)-1000:]
+	}
+}

@@ -65,6 +65,7 @@ func main() {
 	}
 
 	alarmEngine := engine.NewAlarmEngine()
+	scenarioEngine.SetAlarmEngine(alarmEngine)
 	registerDefaultAlarmRules(alarmEngine)
 
 	// 3. 初始化协议适配器
