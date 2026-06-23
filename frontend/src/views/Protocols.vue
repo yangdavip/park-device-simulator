@@ -6,14 +6,18 @@
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-weight: 600; color: #4fc3f7;">{{ proto.toUpperCase() }}</span>
-              <el-tag :type="status.enabled ? 'success' : 'info'" size="small">
-                {{ status.enabled ? '已启用' : '未启用' }}
+              <el-tag :type="isRunning(proto, status) ? 'success' : 'danger'" size="small">
+                {{ isRunning(proto, status) ? '运行中' : '未连接' }}
               </el-tag>
             </div>
           </template>
-          <el-descriptions :column="1" size="small">
+          <el-descriptions :column="1" size="small" border>
             <el-descriptions-item v-for="(v, k) in status" :key="k" :label="k">
-              {{ typeof v === 'object' ? JSON.stringify(v) : v }}
+              <span v-if="typeof v === 'boolean'" :style="{color: v ? '#67c23a' : '#909399'}">
+                {{ v ? '是' : '否' }}
+              </span>
+              <span v-else-if="typeof v === 'object'">{{ JSON.stringify(v) }}</span>
+              <span v-else>{{ v }}</span>
             </el-descriptions-item>
           </el-descriptions>
         </el-card>
@@ -32,6 +36,14 @@ import { getProtocolStatus } from '../api'
 
 const protocols = ref({})
 const loading = ref(false)
+
+const isRunning = (proto, status) => {
+  if (proto === 'mqtt') return status.connected > 0 || !status.broker_down
+  if (proto === 'http') return status.connected === true
+  if (proto === 'opcua') return status.running === true
+  if (proto === 'modbus') return status.servers && status.servers.length > 0
+  return false
+}
 
 const load = async () => {
   loading.value = true
