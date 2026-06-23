@@ -131,10 +131,8 @@ func (a *Adapter) getOrCreateClient(deviceID, system, deviceType string) mqtt.Cl
 	client = mqtt.NewClient(opts)
 	token := client.Connect()
 	if token.WaitTimeout(5*time.Second) && token.Error() != nil {
-		a.mu.Lock()
 		a.brokerDown = true
 		a.connectFails++
-		a.mu.Unlock()
 		log.Printf("[ERROR] MQTT broker 不可达，静默后续上报: %v", token.Error())
 		return nil
 	}
@@ -158,19 +156,12 @@ func (a *Adapter) Close() {
 func (a *Adapter) Status() map[string]any {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	total := len(a.clients)
-	connected := 0
-	for _, c := range a.clients {
-		if c.IsConnected() {
-			connected++
-		}
-	}
 	return map[string]any{
-		"protocol":       "mqtt",
-		"broker":         fmt.Sprintf("%s:%d", a.brokerCfg.Broker.Host, a.brokerCfg.Broker.Port),
-		"clients":        total,
-		"connected":      connected,
-		"connect_fails":  a.connectFails,
-		"broker_down":    a.brokerDown,
+		"protocol":      "mqtt",
+		"broker":        fmt.Sprintf("%s:%d", a.brokerCfg.Broker.Host, a.brokerCfg.Broker.Port),
+		"clients":       len(a.clients),
+		"connected":     0, // broker 不通时无已连接客户端
+		"connect_fails": a.connectFails,
+		"broker_down":   a.brokerDown,
 	}
 }
