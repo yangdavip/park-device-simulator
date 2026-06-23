@@ -95,7 +95,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
-import { getDevices } from '../api'
+import { getDevices, getDeviceData } from '../api'
 
 const devices = ref([])
 const total = ref(0)
@@ -145,9 +145,17 @@ const resetFilters = () => {
   loadDevices()
 }
 
-const showDetail = (row) => {
+const showDetail = async (row) => {
   currentDevice.value = row
   detailVisible.value = true
+  try {
+    const { data } = await getDeviceData(row.id)
+    if (data.last_data) {
+      currentDevice.value = { ...row, last_data: data.last_data }
+    }
+  } catch (e) {
+    console.error('loadDeviceData error', e)
+  }
 }
 
 onMounted(loadDevices)

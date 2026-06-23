@@ -117,6 +117,7 @@ func (s *Server) getDevices(c *gin.Context) {
 			"system":   d.System(),
 			"protocol": string(d.Protocol()),
 			"status":   string(d.Status()),
+			"last_data": d.LastData(),
 		}
 		if meta := d.Meta(); meta != nil {
 			item["metadata"] = meta
