@@ -131,9 +131,11 @@ func (a *Adapter) getOrCreateClient(deviceID, system, deviceType string) mqtt.Cl
 	client = mqtt.NewClient(opts)
 	token := client.Connect()
 	if token.WaitTimeout(5*time.Second) && token.Error() != nil {
+		if !a.brokerDown {
+			log.Printf("[ERROR] MQTT broker 不可达，静默后续上报: %v", token.Error())
+		}
 		a.brokerDown = true
 		a.connectFails++
-		log.Printf("[ERROR] MQTT broker 不可达，静默后续上报: %v", token.Error())
 		return nil
 	}
 
