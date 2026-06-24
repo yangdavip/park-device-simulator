@@ -15,5 +15,7 @@ export const getAlarms = () => api.get('/alarms')
 export const ackAlarms = () => api.put('/alarms/0/ack')
 export const getProtocolStatus = () => api.get('/protocols/status')
 export const getProtocolInfo = () => api.get('/protocols/info')
+export const createDevice = (data) => api.post('/devices', data)
+export const deleteDevice = (id) => api.delete(`/devices/${id}`)
 
 export default api

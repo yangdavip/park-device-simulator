@@ -1,7 +1,9 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -58,6 +60,8 @@ func (s *Server) SetupRoutes(r *gin.Engine) {
 		api.GET("/devices", s.getDevices)
 		api.GET("/devices/:id", s.getDevice)
 		api.GET("/devices/:id/data", s.getDeviceData)
+		api.POST("/devices", s.createDevice)
+		api.DELETE("/devices/:id", s.deleteDevice)
 		api.GET("/scenarios", s.getScenarios)
 		api.POST("/scenarios/:name/activate", s.activateScenario)
 		api.GET("/alarms", s.getAlarms)
@@ -96,7 +100,7 @@ func (s *Server) getStats(c *gin.Context) {
 func (s *Server) getDevices(c *gin.Context) {
 	system := c.Query("system")
 	status := c.Query("status")
-	limit := 100
+	limit := 500
 	if l := c.Query("limit"); l != "" {
 		// 简单解析
 	}
@@ -110,6 +114,11 @@ func (s *Server) getDevices(c *gin.Context) {
 		}
 		if status != "" && string(d.Status()) != status {
 			continue
+		}
+		if keyword := c.Query("keyword"); keyword != "" {
+			if !contains(d.ID(), keyword) && !contains(d.Type(), keyword) {
+				continue
+			}
 		}
 
 		item := map[string]any{
@@ -167,6 +176,99 @@ func (s *Server) getDeviceData(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusNotFound, gin.H{"error": "device not found"})
+}
+
+func (s *Server) createDevice(c *gin.Context) {
+	var req struct {
+		Type     string `json:"type" binding:"required"`
+		System   string `json:"system" binding:"required"`
+		Protocol string `json:"protocol" binding:"required"`
+		Building string `json:"building"`
+		Floor    int    `json:"floor"`
+		Location string `json:"location"`
+		CustomID string `json:"custom_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 校验设备类型是否已注册
+	registered := false
+	for _, t := range device.RegisteredTypes() {
+		if t == req.Type {
+			registered = true
+			break
+		}
+	}
+	if !registered {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown device type: " + req.Type})
+		return
+	}
+
+	// 生成设备 ID
+	buildingID := req.Building
+	if buildingID == "" {
+		buildingID = "B001"
+	}
+	deviceID := req.CustomID
+	if deviceID == "" {
+		// 找同类型最大序号
+		maxSeq := 0
+		for _, d := range s.scheduler.Devices() {
+			if d.Type() == req.Type {
+				maxSeq++
+			}
+		}
+		deviceID = fmt.Sprintf("%s-%s-%03d", req.Type, buildingID, maxSeq+1)
+	}
+
+	// 检查 ID 是否已存在
+	for _, d := range s.scheduler.Devices() {
+		if d.ID() == deviceID {
+			c.JSON(http.StatusConflict, gin.H{"error": "device id already exists: " + deviceID})
+			return
+		}
+	}
+
+	meta := map[string]any{
+		"building": buildingID,
+		"floor":    req.Floor,
+	}
+	if req.Location != "" {
+		meta["location"] = req.Location
+	}
+	meta["manual"] = true
+
+	d := device.CreateDevice(req.Type, deviceID, meta, nil)
+	if d == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create device"})
+		return
+	}
+	d.SetProtocol(types.ProtocolType(req.Protocol))
+
+	if err := s.scheduler.AddDeviceDynamic(d); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id":       d.ID(),
+		"type":     d.Type(),
+		"system":   d.System(),
+		"protocol": string(d.Protocol()),
+		"status":   string(d.Status()),
+		"metadata": d.Meta(),
+	})
+}
+
+func (s *Server) deleteDevice(c *gin.Context) {
+	id := c.Param("id")
+	if s.scheduler.RemoveDevice(id) {
+		c.JSON(http.StatusOK, gin.H{"message": "device removed", "id": id})
+	} else {
+		c.JSON(http.StatusNotFound, gin.H{"error": "device not found"})
+	}
 }
 
 func (s *Server) getScenarios(c *gin.Context) {
@@ -283,4 +385,8 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func contains(s, substr string) bool {
+	return len(substr) == 0 || (len(s) >= len(substr) && strings.Contains(s, substr))
 }

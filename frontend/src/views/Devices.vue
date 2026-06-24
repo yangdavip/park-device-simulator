@@ -29,7 +29,10 @@
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span>设备列表（共 {{ total }} 台）</span>
-          <el-button size="small" @click="loadDevices" :icon="Refresh">刷新</el-button>
+          <div>
+            <el-button type="success" size="small" @click="showAddDialog" :icon="Plus">添加设备</el-button>
+            <el-button size="small" @click="loadDevices" :icon="Refresh">刷新</el-button>
+          </div>
         </div>
       </template>
       <el-table :data="devices" style="width: 100%" size="small" v-loading="loading" :max-height="600">
@@ -62,13 +65,58 @@
             <span v-else style="color: #8892b0;">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-button size="small" link @click="showDetail(row)">详情</el-button>
+            <el-button size="small" link type="danger" @click="confirmDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 添加设备弹窗 -->
+    <el-dialog v-model="addVisible" title="添加模拟设备" width="520px">
+      <el-form :model="addForm" label-width="80px" :rules="addRules" ref="addFormRef">
+        <el-form-item label="系统" prop="system">
+          <el-select v-model="addForm.system" placeholder="选择系统" style="width: 100%;" @change="onSystemChange">
+            <el-option v-for="s in systems" :key="s" :label="s" :value="s" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="设备类型" prop="type">
+          <el-select v-model="addForm.type" placeholder="选择设备类型" style="width: 100%;" :disabled="!addForm.system">
+            <el-option v-for="t in availableTypes" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="协议" prop="protocol">
+          <el-select v-model="addForm.protocol" placeholder="选择协议" style="width: 100%;">
+            <el-option label="MQTT" value="mqtt" />
+            <el-option label="HTTP" value="http" />
+            <el-option label="Modbus" value="modbus" />
+            <el-option label="OPC UA" value="opcua" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="楼宇">
+          <el-input v-model="addForm.building" placeholder="默认 B001" />
+        </el-form-item>
+        <el-form-item label="楼层">
+          <el-input-number v-model="addForm.floor" :min="1" :max="50" />
+        </el-form-item>
+        <el-form-item label="位置">
+          <el-input v-model="addForm.location" placeholder="如：大堂、机房（可选）" />
+        </el-form-item>
+        <el-form-item label="设备ID">
+          <el-input v-model="addForm.custom_id" placeholder="留空自动生成（类型-楼宇-序号）" />
+        </el-form-item>
+        <el-form-item label="数量">
+          <el-input-number v-model="addForm.count" :min="1" :max="50" />
+          <span style="margin-left: 8px; color: #909399; font-size: 12px;">批量创建数量</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitAdd" :loading="addLoading">创建</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 详情弹窗 -->
     <el-dialog v-model="detailVisible" :title="`设备详情 - ${currentDevice?.id}`" width="600px">
@@ -94,14 +142,51 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
-import { getDevices, getDeviceData } from '../api'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh, Plus } from '@element-plus/icons-vue'
+import { getDevices, getDeviceData, createDevice, deleteDevice } from '../api'
 
 const devices = ref([])
 const total = ref(0)
 const loading = ref(false)
 const detailVisible = ref(false)
 const currentDevice = ref(null)
+
+// 添加设备相关
+const addVisible = ref(false)
+const addLoading = ref(false)
+const addFormRef = ref(null)
+const addForm = reactive({
+  system: '',
+  type: '',
+  protocol: 'mqtt',
+  building: 'B001',
+  floor: 1,
+  location: '',
+  custom_id: '',
+  count: 1
+})
+const addRules = {
+  system: [{ required: true, message: '请选择系统', trigger: 'change' }],
+  type: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
+  protocol: [{ required: true, message: '请选择协议', trigger: 'change' }]
+}
+
+// 系统 → 设备类型映射
+const systemDeviceMap = {
+  bas: ['ahu', 'fcu', 'fau', 'chiller', 'cooling_tower', 'pump', 'water_tank', 'vent_fan', 'heat_exchanger'],
+  lighting: ['lighting_circuit', 'lux_sensor', 'lamp_controller', 'scene_panel'],
+  security: ['ip_camera', 'ptz_camera', 'video_analyzer', 'infrared_beam', 'electric_fence'],
+  access: ['access_controller', 'face_terminal', 'visitor_kiosk', 'turnstile'],
+  fire: ['smoke_detector', 'temp_detector', 'manual_call_point', 'fire_hydrant', 'sprinkler_pump', 'fire_door'],
+  parking: ['lpr_camera', 'geomagnetic', 'ultrasonic_sensor', 'guide_screen', 'charging_pile'],
+  energy: ['power_meter', 'water_meter', 'gas_meter', 'heat_meter', 'pv_inverter', 'battery_storage'],
+  environment: ['temp_humidity_sensor', 'pm25_sensor', 'co2_sensor', 'noise_sensor', 'gas_sensor', 'weather_station'],
+  elevator: ['elevator_controller', 'escalator_controller'],
+  broadcast: ['broadcast_terminal', 'emergency_broadcast']
+}
+
+const availableTypes = computed(() => systemDeviceMap[addForm.system] || [])
 
 const filters = reactive({
   system: '',
@@ -156,6 +241,78 @@ const showDetail = async (row) => {
   } catch (e) {
     console.error('loadDeviceData error', e)
   }
+}
+
+// 添加设备
+const showAddDialog = () => {
+  Object.assign(addForm, {
+    system: '', type: '', protocol: 'mqtt', building: 'B001',
+    floor: 1, location: '', custom_id: '', count: 1
+  })
+  addVisible.value = true
+}
+
+const onSystemChange = () => {
+  addForm.type = ''
+}
+
+const submitAdd = async () => {
+  if (!addFormRef.value) return
+  await addFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    addLoading.value = true
+    try {
+      const count = addForm.count
+      let successCount = 0
+      let lastError = ''
+      for (let i = 0; i < count; i++) {
+        const payload = {
+          system: addForm.system,
+          type: addForm.type,
+          protocol: addForm.protocol,
+          building: addForm.building,
+          floor: addForm.floor,
+          location: addForm.location
+        }
+        // 仅第一个使用自定义 ID
+        if (i === 0 && addForm.custom_id) {
+          payload.custom_id = addForm.custom_id
+        }
+        try {
+          await createDevice(payload)
+          successCount++
+        } catch (e) {
+          lastError = e.response?.data?.error || e.message
+        }
+      }
+      if (successCount > 0) {
+        ElMessage.success(`成功创建 ${successCount} 台设备`)
+        addVisible.value = false
+        loadDevices()
+      } else {
+        ElMessage.error('创建失败: ' + lastError)
+      }
+    } finally {
+      addLoading.value = false
+    }
+  })
+}
+
+// 删除设备
+const confirmDelete = (row) => {
+  ElMessageBox.confirm(`确认删除设备 ${row.id}？`, '删除设备', {
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await deleteDevice(row.id)
+      ElMessage.success('设备已删除')
+      loadDevices()
+    } catch (e) {
+      ElMessage.error('删除失败: ' + (e.response?.data?.error || e.message))
+    }
+  }).catch(() => {})
 }
 
 onMounted(loadDevices)

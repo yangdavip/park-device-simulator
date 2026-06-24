@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -35,6 +36,47 @@ func (s *Scheduler) AddDevice(d device.Device) {
 	s.mu.Lock()
 	s.devices = append(s.devices, d)
 	s.mu.Unlock()
+}
+
+// AddDeviceDynamic 运行时动态添加设备并立即启动上报 goroutine
+func (s *Scheduler) AddDeviceDynamic(d device.Device) error {
+	s.mu.Lock()
+	running := s.running
+	s.mu.Unlock()
+
+	if !running {
+		return fmt.Errorf("scheduler not running")
+	}
+
+	if err := d.Start(); err != nil {
+		return fmt.Errorf("device start failed: %w", err)
+	}
+
+	s.mu.Lock()
+	s.devices = append(s.devices, d)
+	s.mu.Unlock()
+
+	interval := s.getReportInterval(d)
+	s.wg.Add(1)
+	go s.runDevice(context.Background(), d, interval)
+
+	log.Printf("[INFO] 动态添加设备: %s (%s/%s)", d.ID(), d.System(), d.Type())
+	return nil
+}
+
+// RemoveDevice 运行时移除设备
+func (s *Scheduler) RemoveDevice(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, d := range s.devices {
+		if d.ID() == id {
+			d.Stop()
+			s.devices = append(s.devices[:i], s.devices[i+1:]...)
+			log.Printf("[INFO] 动态移除设备: %s", id)
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Scheduler) Devices() []device.Device {
