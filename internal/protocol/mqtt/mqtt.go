@@ -143,6 +143,16 @@ func (a *Adapter) getOrCreateClient(deviceID, system, deviceType string) mqtt.Cl
 	return client
 }
 
+// BrokerHost 返回 broker 主机
+func (a *Adapter) BrokerHost() string {
+	return a.brokerCfg.Broker.Host
+}
+
+// BrokerPort 返回 broker 端口
+func (a *Adapter) BrokerPort() int {
+	return a.brokerCfg.Broker.Port
+}
+
 // Close 关闭所有 MQTT 客户端
 func (a *Adapter) Close() {
 	a.mu.Lock()

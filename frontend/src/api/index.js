@@ -14,5 +14,6 @@ export const activateScenario = (name) => api.post(`/scenarios/${name}/activate`
 export const getAlarms = () => api.get('/alarms')
 export const ackAlarms = () => api.put('/alarms/0/ack')
 export const getProtocolStatus = () => api.get('/protocols/status')
+export const getProtocolInfo = () => api.get('/protocols/info')
 
 export default api

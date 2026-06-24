@@ -63,6 +63,7 @@ func (s *Server) SetupRoutes(r *gin.Engine) {
 		api.GET("/alarms", s.getAlarms)
 		api.PUT("/alarms/:id/ack", s.ackAlarm)
 		api.GET("/protocols/status", s.getProtocolStatus)
+		api.GET("/protocols/info", s.getProtocolInfo)
 	}
 }
 
@@ -219,6 +220,52 @@ func (s *Server) getAlarms(c *gin.Context) {
 func (s *Server) ackAlarm(c *gin.Context) {
 	s.alarm.ClearAlarms()
 	c.JSON(http.StatusOK, gin.H{"message": "alarms cleared"})
+}
+
+func (s *Server) getProtocolInfo(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"mqtt": gin.H{
+			"broker_host":    s.mqtt.BrokerHost(),
+			"broker_port":    s.mqtt.BrokerPort(),
+			"topic_pattern":  "park/{park_id}/{system}/{device_type}/{device_id}/properties",
+			"alarm_topic":    "park/{park_id}/{system}/{device_type}/{device_id}/alarms",
+			"qos":            1,
+			"payload_format": "json",
+			"direction":      "simulator → broker → platform",
+			"note":           "平台订阅 topic 通配符 park/#/properties 即可接收所有设备数据",
+		},
+		"http": gin.H{
+			"callback_url":   s.http.CallbackURL(),
+			"method":         "POST",
+			"path_pattern":   "/api/v1/devices/{device_id}/events",
+			"payload_format": "json",
+			"direction":      "simulator → platform",
+			"note":           "平台需提供 callback 服务接收 POST 请求",
+		},
+		"modbus": gin.H{
+			"servers": []gin.H{
+				{"name": "power_meters", "port": 502, "slave_ids": []int{1, 2, 3, 4, 5}, "device_type": "power_meter"},
+				{"name": "chillers", "port": 503, "slave_ids": []int{1, 2}, "device_type": "chiller"},
+			},
+			"register_type":  "holding register (功能码 03)",
+			"data_format":    "float32 big-endian, 2 registers per value",
+			"direction":      "platform → simulator (platform as master)",
+			"register_map": []gin.H{
+				{"device_type": "power_meter", "addr": "40001", "points": "voltage_a, voltage_b, voltage_c, current_a, current_b, current_c, active_power, power_factor, energy"},
+				{"device_type": "chiller", "addr": "40001", "points": "running_status, supply_temp, return_temp, power, fault_code"},
+			},
+			"note":           "寄存器地址按设备类型连续分配，每 2 个寄存器为一个 float32 值",
+		},
+		"opcua": gin.H{
+			"endpoint":       "opc.tcp://localhost:4840",
+			"namespace":      "ParkDevices (NS=2)",
+			"security":       "none",
+			"node_pattern":   "NS=2:{system}/{device_id}",
+			"value_type":     "string (JSON)",
+			"direction":      "platform → simulator (platform as client)",
+			"note":           "每个设备一个 Variable 节点，值为包含所有数据点的 JSON 字符串",
+		},
+	})
 }
 
 func (s *Server) getProtocolStatus(c *gin.Context) {

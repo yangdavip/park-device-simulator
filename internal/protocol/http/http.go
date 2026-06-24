@@ -95,6 +95,13 @@ func (a *Adapter) SetCallbackURL(url string) {
 	a.mu.Unlock()
 }
 
+// CallbackURL 返回回调地址
+func (a *Adapter) CallbackURL() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.callbackURL
+}
+
 // Status 返回状态
 func (a *Adapter) Status() map[string]any {
 	a.mu.RLock()
