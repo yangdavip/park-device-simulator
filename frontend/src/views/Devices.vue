@@ -60,11 +60,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="最新数据" min-width="300">
+        <el-table-column label="最新数据" min-width="350">
           <template #default="{ row }">
             <div v-if="row.last_data">
               <el-tag v-for="(v, k) in row.last_data" :key="k" size="small" style="margin: 2px;">
-                {{ k }}: {{ formatVal(v) }}
+                {{ dataPointLabels[k] || k }}: {{ formatVal(v) }}
               </el-tag>
             </div>
             <span v-else style="color: #8892b0;">-</span>
@@ -137,7 +137,11 @@
       <div v-if="currentDevice?.last_data">
         <h4 style="color: #4fc3f7; margin-bottom: 12px;">最新数据</h4>
         <el-table :data="dataEntries" size="small" border>
-          <el-table-column prop="key" label="数据点" width="200" />
+          <el-table-column prop="key" label="数据点" width="200">
+            <template #default="{ row }">
+              {{ dataPointLabels[row.key] || row.key }}
+            </template>
+          </el-table-column>
           <el-table-column prop="value" label="值" />
         </el-table>
       </div>
@@ -175,6 +179,68 @@ const addRules = {
   system: [{ required: true, message: '请选择系统', trigger: 'change' }],
   type: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
   protocol: [{ required: true, message: '请选择协议', trigger: 'change' }]
+}
+
+// 设备数据点中文描述
+const dataPointLabels = {
+  // 通用
+  running: '运行状态', status: '状态', fault: '故障', alarm: '告警', online: '在线',
+  temperature: '温度', humidity: '湿度', power: '功率', voltage: '电压', current: '电流',
+  flow: '流量', pressure: '压力', direction: '方向', load: '负载',
+  // BAS
+  fan_speed: '风速', return_temp: '回风温度', set_temp: '设定温度', supply_temp: '送风温度',
+  room_temp: '室内温度', valve_open: '阀门开度',
+  chw_return_temp: '冷冻回水温度', chw_supply_temp: '冷冻供水温度',
+  cw_return_temp: '冷却回水温度', cw_supply_temp: '冷却供水温度',
+  load_rate: '负荷率', fan_rpm: '风机转速', outlet_temp: '出水温度',
+  freq: '频率', head: '扬程', filter_pressure: '滤网压差',
+  fresh_humidity: '新风湿度', fresh_temp: '新风温度',
+  level: '液位', high_alarm: '高液位告警', low_alarm: '低液位告警',
+  pri_return_temp: '一次侧回水温度', pri_supply_temp: '一次侧供水温度',
+  sec_return_temp: '二次侧回水温度', sec_supply_temp: '二次侧供水温度',
+  // Lighting
+  brightness: '亮度', on: '开关', total_hours: '累计时长',
+  lux: '照度', current_scene: '当前场景', key_event: '按键事件',
+  // Security
+  bitrate: '码率', motion_detect: '移动检测', resolution: '分辨率',
+  face_capture_event: '人脸抓拍', pan_angle: '水平角度', tilt_angle: '垂直角度',
+  zoom: '变倍', preset: '预置位',
+  anomaly_event: '异常事件', people_count: '人数', vehicle_count: '车数',
+  signal_strength: '信号强度', short_circuit: '短路',
+  // Access
+  card_event: '刷卡事件', door_status: '门状态', illegal_entry: '非法闯入',
+  open_duration: '开门时长', pass_count: '通过人数',
+  body_temp: '体温', recognize_result: '识别结果', record_id: '记录ID',
+  auth_period: '授权时长', register_event: '登记事件', visitee: '被访人', visitor_type: '访客类型',
+  // Fire
+  smoke_density: '烟雾浓度', battery_level: '电量',
+  rise_rate: '温升速率', triggered: '已触发',
+  pipe_pressure: '管道压力', pressure_alarm: '压力告警', valve_status: '阀门状态',
+  flow_indicator: '水流指示器', closer_status: '闭门器状态',
+  // Parking
+  occupied: '占用状态', plate_number: '车牌号', pass_event: '过车事件',
+  recognize_time: '识别时间', distance: '距离',
+  display_content: '显示内容', remaining: '剩余车位',
+  charging_status: '充电状态', soc: 'SOC', soh: 'SOH',
+  energy: '电量',
+  // Energy
+  active_power: '有功功率', reactive_power: '无功功率', power_factor: '功率因数',
+  frequency: '频率',
+  voltage_a: 'A相电压', voltage_b: 'B相电压', voltage_c: 'C相电压',
+  current_a: 'A相电流', current_b: 'B相电流', current_c: 'C相电流',
+  instant_flow: '瞬时流量', total_flow: '累计流量', leak_alarm: '泄漏告警',
+  instant_power: '瞬时功率', total_energy: '累计能量',
+  ac_voltage: '交流电压', dc_voltage: '直流电压', output_power: '输出功率',
+  daily_energy: '日发电量',
+  // Environment
+  co2: 'CO2浓度', pm25: 'PM2.5', pm10: 'PM10', noise: '噪音',
+  formaldehyde: '甲醛', tvoc: 'TVOC',
+  wind_speed: '风速', wind_direction: '风向', rainfall: '雨量',
+  // Elevator
+  current_floor: '当前楼层', fault_code: '故障代码', speed: '速度',
+  // Broadcast
+  volume: '音量', playing: '播放中', current_program: '当前节目',
+  test_status: '测试状态'
 }
 
 // 系统中文描述
