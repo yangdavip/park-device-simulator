@@ -4,8 +4,8 @@
     <el-card shadow="hover" style="margin-bottom: 16px;">
       <el-form :inline="true" :model="filters">
         <el-form-item label="系统">
-          <el-select v-model="filters.system" placeholder="全部系统" clearable style="width: 150px;">
-            <el-option v-for="s in systems" :key="s" :label="s" :value="s" />
+          <el-select v-model="filters.system" placeholder="全部系统" clearable style="width: 180px;">
+            <el-option v-for="s in systemFilterOptions" :key="s.value" :label="s.label" :value="s.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -37,12 +37,17 @@
       </template>
       <el-table :data="devices" style="width: 100%" size="small" v-loading="loading" :max-height="600">
         <el-table-column prop="id" label="设备ID" width="220" />
-        <el-table-column prop="type" label="类型" width="160">
+        <el-table-column prop="type" label="类型" width="200">
           <template #default="{ row }">
             <el-tag size="small" type="info">{{ row.type }}</el-tag>
+            <span style="margin-left: 4px; color: #8892b0; font-size: 12px;">{{ deviceTypeLabels[row.type] || '' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="system" label="系统" width="120" />
+        <el-table-column prop="system" label="系统" width="140">
+          <template #default="{ row }">
+            {{ row.system }} / {{ systemLabels[row.system] || '' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="protocol" label="协议" width="100">
           <template #default="{ row }">
             <el-tag size="small">{{ row.protocol }}</el-tag>
@@ -79,12 +84,12 @@
       <el-form :model="addForm" label-width="80px" :rules="addRules" ref="addFormRef">
         <el-form-item label="系统" prop="system">
           <el-select v-model="addForm.system" placeholder="选择系统" style="width: 100%;" @change="onSystemChange">
-            <el-option v-for="s in systems" :key="s" :label="s" :value="s" />
+            <el-option v-for="s in systemOptions" :key="s.value" :label="s.label" :value="s.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="设备类型" prop="type">
           <el-select v-model="addForm.type" placeholder="选择设备类型" style="width: 100%;" :disabled="!addForm.system">
-            <el-option v-for="t in availableTypes" :key="t" :label="t" :value="t" />
+            <el-option v-for="t in availableTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="协议" prop="protocol">
@@ -122,8 +127,8 @@
     <el-dialog v-model="detailVisible" :title="`设备详情 - ${currentDevice?.id}`" width="600px">
       <el-descriptions :column="2" border v-if="currentDevice">
         <el-descriptions-item label="设备ID">{{ currentDevice.id }}</el-descriptions-item>
-        <el-descriptions-item label="类型">{{ currentDevice.type }}</el-descriptions-item>
-        <el-descriptions-item label="系统">{{ currentDevice.system }}</el-descriptions-item>
+        <el-descriptions-item label="类型">{{ currentDevice.type }} / {{ deviceTypeLabels[currentDevice.type] || '' }}</el-descriptions-item>
+        <el-descriptions-item label="系统">{{ currentDevice.system }} / {{ systemLabels[currentDevice.system] || '' }}</el-descriptions-item>
         <el-descriptions-item label="协议">{{ currentDevice.protocol }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ currentDevice.status }}</el-descriptions-item>
         <el-descriptions-item label="楼层">{{ currentDevice.metadata?.floor || '-' }}</el-descriptions-item>
@@ -172,6 +177,83 @@ const addRules = {
   protocol: [{ required: true, message: '请选择协议', trigger: 'change' }]
 }
 
+// 系统中文描述
+const systemLabels = {
+  bas: '楼宇自控',
+  lighting: '智能照明',
+  security: '安防监控',
+  access: '门禁管理',
+  fire: '消防系统',
+  parking: '智慧停车',
+  energy: '能源管理',
+  environment: '环境监测',
+  elevator: '电梯控制',
+  broadcast: '公共广播'
+}
+
+// 设备类型中文描述
+const deviceTypeLabels = {
+  // BAS
+  ahu: '空调机组(AHU)',
+  fcu: '风机盘管(FCU)',
+  fau: '新风机组(FAU)',
+  chiller: '冷水机组',
+  cooling_tower: '冷却塔',
+  pump: '水泵',
+  water_tank: '水箱',
+  vent_fan: '排风机',
+  heat_exchanger: '热交换器',
+  // Lighting
+  lighting_circuit: '照明回路',
+  lux_sensor: '照度传感器',
+  lamp_controller: '灯具控制器',
+  scene_panel: '场景面板',
+  // Security
+  ip_camera: '网络摄像机',
+  ptz_camera: '云台摄像机',
+  video_analyzer: '视频分析单元',
+  infrared_beam: '红外对射',
+  electric_fence: '电子围栏',
+  // Access
+  access_controller: '门禁控制器',
+  face_terminal: '人脸终端',
+  visitor_kiosk: '访客机',
+  turnstile: '闸机',
+  // Fire
+  smoke_detector: '烟感探测器',
+  temp_detector: '温感探测器',
+  manual_call_point: '手动报警按钮',
+  fire_hydrant: '消火栓',
+  sprinkler_pump: '喷淋泵',
+  fire_door: '防火门',
+  // Parking
+  lpr_camera: '车牌识别相机',
+  geomagnetic: '地磁传感器',
+  ultrasonic_sensor: '超声波传感器',
+  guide_screen: '引导屏',
+  charging_pile: '充电桩',
+  // Energy
+  power_meter: '电力仪表',
+  water_meter: '水表',
+  gas_meter: '燃气表',
+  heat_meter: '热量表',
+  pv_inverter: '光伏逆变器',
+  battery_storage: '储能电池',
+  // Environment
+  temp_humidity_sensor: '温湿度传感器',
+  pm25_sensor: 'PM2.5传感器',
+  co2_sensor: 'CO2传感器',
+  noise_sensor: '噪音传感器',
+  gas_sensor: '燃气传感器',
+  weather_station: '气象站',
+  // Elevator
+  elevator_controller: '电梯控制器',
+  escalator_controller: '扶梯控制器',
+  // Broadcast
+  broadcast_terminal: '广播终端',
+  emergency_broadcast: '紧急广播'
+}
+
 // 系统 → 设备类型映射
 const systemDeviceMap = {
   bas: ['ahu', 'fcu', 'fau', 'chiller', 'cooling_tower', 'pump', 'water_tank', 'vent_fan', 'heat_exchanger'],
@@ -186,7 +268,16 @@ const systemDeviceMap = {
   broadcast: ['broadcast_terminal', 'emergency_broadcast']
 }
 
-const availableTypes = computed(() => systemDeviceMap[addForm.system] || [])
+// 下拉选项（带中文描述）
+const systemOptions = Object.keys(systemDeviceMap).map(k => ({ value: k, label: `${k} / ${systemLabels[k]}` }))
+
+const availableTypeOptions = computed(() => {
+  const types = systemDeviceMap[addForm.system] || []
+  return types.map(t => ({ value: t, label: `${t} / ${deviceTypeLabels[t] || t}` }))
+})
+
+// 筛选栏系统选项（纯值，label 带中文）
+const systemFilterOptions = systemOptions
 
 const filters = reactive({
   system: '',
@@ -194,7 +285,7 @@ const filters = reactive({
   keyword: ''
 })
 
-const systems = ['bas', 'lighting', 'security', 'access', 'fire', 'parking', 'energy', 'environment', 'elevator', 'broadcast']
+const systems = Object.keys(systemDeviceMap)
 
 const dataEntries = computed(() => {
   if (!currentDevice.value?.last_data) return []
